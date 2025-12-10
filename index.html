@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>搜索意图分析专家 - Search Intent Analyst</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Marked.js -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'Inter', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6', // 使用紫色系代表“智慧/分析”
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                            950: '#2e1065',
+                        }
+                    },
+                    boxShadow: {
+                        'glass': '0 4px 30px rgba(0, 0, 0, 0.1)',
+                        'card': '0 0 0 1px rgba(0,0,0,0.03), 0 2px 8px rgba(0,0,0,0.04), 0 12px 24px rgba(0,0,0,0.04)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                        'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { 
+            background-color: #f8fafc;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(124, 58, 237, 0.08) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(167, 139, 250, 0.05) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: #334155;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .bg-grid-pattern {
+            background-size: 40px 40px;
+            background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+            opacity: 0.4;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Markdown Typography */
+        .markdown-body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.8;
+            color: #334155;
+        }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+            color: #2e1065;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin-top: 1.5em;
+            margin-bottom: 0.6em;
+        }
+        .markdown-body h2 { font-size: 1.4em; font-weight: 700; padding-left: 0.5em; border-left: 4px solid #8b5cf6; }
+        .markdown-body p { margin-bottom: 1.2em; }
+        .markdown-body ul { list-style: none; padding-left: 0; margin-bottom: 1.2em; }
+        .markdown-body ul li { position: relative; padding-left: 1.5em; margin-bottom: 0.4em; }
+        .markdown-body ul li::before {
+            content: "•";
+            color: #8b5cf6;
+            font-weight: bold;
+            position: absolute;
+            left: 0.2em;
+        }
+        .markdown-body blockquote {
+            background: linear-gradient(to right, #f5f3ff, rgba(255,255,255,0));
+            border-left: 4px solid #8b5cf6;
+            margin: 1.5em 0;
+            padding: 1em 1.5em;
+            color: #5b21b6;
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+        }
+        .markdown-body code {
+            background-color: #f1f5f9;
+            color: #6d28d9;
+            padding: 0.2em 0.4em;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85em;
+        }
+        .typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background-color: #8b5cf6;
+            vertical-align: middle;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden selection:bg-brand-500/20 selection:text-brand-900">
+
+    <div class="fixed inset-0 pointer-events-none z-0 bg-grid-pattern"></div>
+
+    <!-- Header -->
+    <header class="bg-white/70 backdrop-blur-md border-b border-white/20 shadow-sm z-30 shrink-0 relative">
+        <div class="max-w-[1600px] mx-auto px-6 h-18 md:h-20 flex items-center justify-between">
+            <div class="flex items-center gap-4 group cursor-default">
+                <div class="relative">
+                    <div class="absolute inset-0 bg-brand-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+                    <div class="relative bg-gradient-to-br from-brand-600 to-brand-800 text-white w-10 h-10 md:w-11 md:h-11 rounded-xl flex items-center justify-center shadow-lg shadow-brand-500/30 ring-1 ring-white/50">
+                        <i class="fa-solid fa-magnifying-glass-chart text-lg md:text-xl"></i>
+                    </div>
+                </div>
+                <div class="flex flex-col justify-center">
+                    <h1 class="text-lg md:text-xl font-bold text-slate-800 tracking-tight leading-none group-hover:text-brand-600 transition-colors">搜索意图分析专家</h1>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded border border-brand-100 uppercase tracking-wider">SEO Intelligence</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div class="hidden md:flex items-center gap-2 text-xs font-medium text-emerald-600 bg-emerald-50/80 px-3 py-1.5 rounded-full border border-emerald-100 backdrop-blur-sm">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    Serper Engine Ready
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-[1600px] mx-auto w-full p-4 md:p-6 flex flex-col lg:flex-row gap-6 overflow-hidden relative z-10">
+        
+        <!-- Left: Input Control -->
+        <section class="flex-1 lg:flex-[0.5] flex flex-col min-w-0 bg-white/80 backdrop-blur-sm rounded-2xl shadow-card border border-white/50 overflow-hidden h-full animate-slide-up">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white/50 backdrop-blur-md">
+                <h2 class="font-bold text-slate-800 flex items-center gap-2.5">
+                    <i class="fa-solid fa-crosshairs text-brand-500"></i>
+                    分析目标
+                </h2>
+            </div>
+            
+            <div class="flex-1 flex flex-col p-6 gap-6 overflow-y-auto">
+                <div class="space-y-6">
+                    <!-- 核心关键词输入 -->
+                    <div class="group relative">
+                        <label for="keywordInput" class="block text-sm font-bold text-slate-700 mb-2">
+                            输入核心关键词 <span class="text-brand-500">*</span>
+                        </label>
+                        <p class="text-xs text-slate-500 mb-3">系统将实时抓取 Google 首页结果，分析背后的用户显性与隐性意图。</p>
+                        <div class="relative group-focus-within:transform group-focus-within:-translate-y-0.5 transition-transform duration-200">
+                            <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
+                                <i class="fa-solid fa-key text-slate-400 group-focus-within:text-brand-500 transition-colors"></i>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="keywordInput"
+                                class="block w-full pl-11 pr-4 py-4 bg-white border border-slate-200 rounded-xl text-base font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-500/10 transition-all shadow-sm"
+                                placeholder="例如：CRM系统推荐, 怎么做红烧肉, iphone 15 vs pro..."
+                                autocomplete="off"
+                                onkeydown="if(event.key === 'Enter') startAnalysis()"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- 装饰性说明区域，填充左侧空间 -->
+                    <div class="bg-slate-50 rounded-xl p-5 border border-slate-100 mt-4">
+                        <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">分析维度预览</h3>
+                        <ul class="space-y-3">
+                            <li class="flex items-center gap-3 text-sm text-slate-600">
+                                <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-bullseye"></i>
+                                </div>
+                                <span><b>意图分类</b>：信息型 / 交易型 / 导航型</span>
+                            </li>
+                            <li class="flex items-center gap-3 text-sm text-slate-600">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-layer-group"></i>
+                                </div>
+                                <span><b>SERP 特征</b>：精选摘要 / 视频 / 购物广告</span>
+                            </li>
+                            <li class="flex items-center gap-3 text-sm text-slate-600">
+                                <div class="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-users-viewfinder"></i>
+                                </div>
+                                <span><b>受众画像</b>：痛点、需求阶段与转化路径</span>
+                            </li>
+                            <li class="flex items-center gap-3 text-sm text-slate-600">
+                                <div class="w-8 h-8 rounded-lg bg-pink-100 text-pink-600 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-list-check"></i>
+                                </div>
+                                <span><b>内容缺口</b>：竞品未覆盖的高价值话题</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部按钮 -->
+            <div class="p-6 pt-4 border-t border-slate-50 bg-slate-50/50 backdrop-blur-sm">
+                <button 
+                    onclick="startAnalysis()" 
+                    id="auditBtn" 
+                    class="w-full relative overflow-hidden bg-gradient-to-r from-brand-700 to-brand-600 hover:from-brand-600 hover:to-brand-500 text-white font-bold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg shadow-brand-600/30 hover:shadow-brand-600/40 hover:-translate-y-0.5 active:translate-y-0"
+                >
+                    <span class="relative flex items-center justify-center gap-3">
+                        <span id="btnText" class="tracking-wide">开始意图分析</span>
+                        <i id="btnIcon" class="fa-solid fa-rocket"></i>
+                    </span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Right: Analysis Report -->
+        <section class="flex-1 flex flex-col min-w-0 bg-white/80 backdrop-blur-sm rounded-2xl shadow-card border border-white/50 overflow-hidden h-full animate-slide-up relative" style="animation-delay: 0.1s;">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-white/50 backdrop-blur-md z-20">
+                <h2 class="font-bold text-slate-800 flex items-center gap-2.5">
+                    <span class="relative flex h-3 w-3">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-400 opacity-0" id="processingPing"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-brand-500 opacity-0 transition-opacity duration-300" id="processingDot"></span>
+                        <i class="fa-solid fa-file-waveform text-brand-500 absolute inset-0 text-xs flex items-center justify-center" id="staticIcon"></i>
+                    </span>
+                    <span class="ml-1">意图分析报告</span>
+                </h2>
+                <button onclick="copyResult()" class="group flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-brand-600 hover:bg-brand-50 transition-all border border-transparent hover:border-brand-100">
+                    <i class="fa-regular fa-copy group-hover:scale-110 transition-transform"></i>
+                    复制报告
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-6 md:p-10 bg-white/40 relative scroll-smooth flex flex-col">
+                <!-- Empty State -->
+                <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none select-none p-8">
+                    <div class="relative mb-6 group">
+                        <div class="absolute inset-0 bg-brand-400 blur-2xl opacity-10 rounded-full"></div>
+                        <div class="w-24 h-24 bg-white rounded-2xl flex items-center justify-center shadow-lg border border-white/60 relative z-10">
+                            <i class="fa-solid fa-search text-5xl bg-gradient-to-br from-brand-400 to-brand-600 bg-clip-text text-transparent"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-700 mb-2">等待输入</h3>
+                    <p class="text-sm text-slate-500 text-center">输入关键词后，AI 将自动分析 SERP 结果。</p>
+                </div>
+                
+                <!-- Output -->
+                <div id="resultOutput" class="markdown-body text-sm hidden pb-8 flex-1 animate-fade-in"></div>
+
+                <!-- Status Bar -->
+                <div id="statusIndicator" class="hidden mt-auto pt-6 border-t border-slate-100/60 shrink-0 bg-white/0 backdrop-blur-sm sticky bottom-0">
+                    <div class="flex items-center gap-4 bg-white/80 p-4 rounded-xl border border-brand-100 shadow-lg shadow-brand-500/5">
+                        <div class="relative shrink-0">
+                            <div class="w-10 h-10 rounded-full border-2 border-brand-100 border-t-brand-500 animate-spin"></div>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <i class="fa-solid fa-brain text-brand-500 text-xs animate-pulse"></i>
+                            </div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h4 class="text-xs font-bold text-brand-700 uppercase tracking-wider mb-0.5">AI Processing</h4>
+                            <p class="text-sm text-slate-600 truncate flex items-center gap-1">
+                                <span id="rotatingTip" class="animate-fade-in">正在初始化分析模型...</span>
+                                <span class="typing-cursor"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const loadingTips = [
+            '<i class="fa-brands fa-google mr-1"></i> 正在抓取 Google 前10名搜索结果...',
+            '<i class="fa-solid fa-spider mr-1"></i> 正在深度解析页面内容结构...',
+            '<i class="fa-solid fa-microscope mr-1"></i> 正在识别用户潜在搜索意图...',
+            '<i class="fa-solid fa-chart-pie mr-1"></i> 正在构建用户画像与需求图谱...',
+            '<i class="fa-solid fa-pen-fancy mr-1"></i> 正在生成内容策略建议...'
+        ];
+
+        let tipInterval;
+
+        function startRotatingTips() {
+            const tipEl = document.getElementById('rotatingTip');
+            let index = 0;
+            tipEl.innerHTML = loadingTips[0]; 
+            
+            clearInterval(tipInterval);
+            tipInterval = setInterval(() => {
+                index = (index + 1) % loadingTips.length;
+                tipEl.style.opacity = '0';
+                setTimeout(() => {
+                    tipEl.innerHTML = loadingTips[index];
+                    tipEl.style.opacity = '1';
+                }, 300);
+            }, 3000);
+        }
+
+        function stopRotatingTips() {
+            clearInterval(tipInterval);
+        }
+
+        async function startAnalysis() {
+            const keyword = document.getElementById('keywordInput').value.trim();
+            
+            if (!keyword) {
+                alert("请输入关键词");
+                return;
+            }
+            
+            // UI State
+            const btn = document.getElementById('auditBtn');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
+            const emptyState = document.getElementById('emptyState');
+            const resultOutput = document.getElementById('resultOutput');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const processingPing = document.getElementById('processingPing');
+            const processingDot = document.getElementById('processingDot');
+            const staticIcon = document.getElementById('staticIcon');
+            
+            btn.disabled = true;
+            btnText.innerText = "正在深入分析...";
+            btnIcon.className = "fa-solid fa-circle-notch fa-spin";
+            btn.classList.add('opacity-90', 'cursor-wait');
+            
+            if(processingPing) processingPing.style.opacity = '0.75';
+            if(processingDot) processingDot.style.opacity = '1';
+            if(staticIcon) staticIcon.style.opacity = '0';
+
+            emptyState.classList.add('hidden');
+            resultOutput.classList.remove('hidden');
+            statusIndicator.classList.remove('hidden');
+            
+            startRotatingTips();
+            resultOutput.innerHTML = ''; 
+
+            try {
+                // 指向新的 intent 接口 (映射到 intent.js)
+                const response = await fetch('/api/intent', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keyword }) 
+                });
+
+                if (!response.ok) throw new Error(`Server Error: ${response.status}`);
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = "";
+                let buffer = "";
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); 
+
+                    for (const line of lines) {
+                        if (line.trim() === '') continue;
+                        if (line.startsWith('data: ')) {
+                            const dataStr = line.slice(6);
+                            if (dataStr.trim() === '[DONE]') continue;
+                            
+                            try {
+                                const data = JSON.parse(dataStr);
+                                const content = data.choices[0]?.delta?.content || "";
+                                fullText += content;
+                                resultOutput.innerHTML = marked.parse(fullText);
+                                const scrollContainer = resultOutput.parentElement;
+                                if(scrollContainer.scrollHeight - scrollContainer.scrollTop - scrollContainer.clientHeight < 200) {
+                                     scrollContainer.scrollTop = scrollContainer.scrollHeight;
+                                }
+                            } catch (e) {
+                                console.warn("Stream parse error", e);
+                            }
+                        }
+                    }
+                }
+                resultOutput.innerHTML = marked.parse(fullText);
+
+            } catch (error) {
+                resultOutput.innerHTML = `
+                    <div class="p-6 bg-red-50 border border-red-100 rounded-xl text-red-600 flex items-start gap-4">
+                        <i class="fa-solid fa-triangle-exclamation mt-1"></i>
+                        <div>
+                            <h3 class="font-bold">分析中断</h3>
+                            <p class="text-sm mt-1">${error.message}</p>
+                        </div>
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-90', 'cursor-wait');
+                btnText.innerText = "开始意图分析";
+                btnIcon.className = "fa-solid fa-rocket";
+                
+                if(processingPing) processingPing.style.opacity = '0';
+                if(processingDot) processingDot.style.opacity = '0';
+                if(staticIcon) staticIcon.style.opacity = '1';
+
+                stopRotatingTips();
+                statusIndicator.classList.add('hidden');
+            }
+        }
+
+        function copyResult() {
+            const content = document.getElementById('resultOutput').innerText;
+            if(!content) return;
+            navigator.clipboard.writeText(content).then(() => {
+                const btn = document.querySelector('button[onclick="copyResult()"]');
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> 已复制';
+                setTimeout(() => btn.innerHTML = original, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
