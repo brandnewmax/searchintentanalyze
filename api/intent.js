@@ -68,17 +68,24 @@ async function fetchSerperSearch(query, apiKey) {
 
 /**
  * Jina Reader API (Content Scraping)
+ * [已更新] 增加了 API Key 支持，提升抓取稳定性
  */
-async function fetchJinaContent(url) {
+async function fetchJinaContent(url, apiKey = null) {
   if (!url) return null;
 
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 12000); 
 
+    const headers = { "X-Return-Format": "markdown" };
+    // 如果有 Key，则添加鉴权头
+    if (apiKey) {
+      headers["Authorization"] = `Bearer ${apiKey}`;
+    }
+
     const response = await fetch(`https://r.jina.ai/${url}`, {
       method: "GET",
-      headers: { "X-Return-Format": "markdown" },
+      headers: headers,
       signal: controller.signal
     });
 
@@ -114,6 +121,7 @@ export default async function handler(req) {
   // 如果没有，可以使用默认的通用分析提示词
   const systemPrompt = process.env.SEARCH_INTENT_PROMPT || "You are a Search Intent Analysis Expert. Analyze the provided search results to determine user intent, content gaps, and SEO strategy.";
   const serperKey = process.env.SERPER_API_KEY;
+  const jinaKey = process.env.JINA_API_KEY; // [新增] 获取 Jina Key
   const modelName = process.env.AI_MODEL_NAME || "gemini-2.0-flash-exp";
 
   if (!apiKey || !baseUrl) {
@@ -161,7 +169,8 @@ export default async function handler(req) {
             const topResults = searchResults.slice(0, 8); 
             
             const contentPromises = topResults.map(async (res) => {
-                const markdown = await fetchJinaContent(res.link);
+                // [已更新] 传入 jinaKey
+                const markdown = await fetchJinaContent(res.link, jinaKey);
                 return {
                     title: res.title,
                     link: res.link,
